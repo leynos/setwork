@@ -1,6 +1,6 @@
 schema-version = 1
 package = "setwork.cuprum"
-output = "src/setwork/cuprum"
+output = "generated/setwork/cuprum"
 target-profile = "gnu-linux"
 python-requires = ">=3.12"
 
@@ -36,7 +36,6 @@ adapter = "setwork.grammars.gnu_find:build_spec"
 [commands]
 include = ["echo", "dd", "git", "tar", "find"]
 reject-unresolved = true
-reject-delegated-execution = true
 
 [output-catalogue]
 project-name = "setwork-generated"

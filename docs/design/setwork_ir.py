@@ -235,8 +235,8 @@ class ParameterSpec:
         if self.role is ParameterRole.OPTION and spelling is not None:
             if spelling not in self.cli_names:
                 raise ValueError("canonical spelling must be one of the aliases")
-        if self.value.kind is ValueKind.FLAG and self.values.maximum not in (0, 1):
-            raise ValueError("flag parameters cannot consume multiple values")
+        if self.value.kind is ValueKind.FLAG and self.values.maximum != 0:
+            raise ValueError("flag parameters cannot consume values")
 
 
 @dc.dataclass(frozen=True, slots=True)

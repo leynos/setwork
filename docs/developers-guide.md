@@ -10,6 +10,10 @@ contracts. The [roadmap](roadmap.md) sequences their implementation; unchecked
 tasks represent future work. The [repository layout](repository-layout.md)
 distinguishes current files from proposed paths.
 
+The reference generated package lives at `generated/setwork/cuprum`, as shown
+in section 5.3 of the [technical design](tech-design.md). Its contents remain
+package-root-relative in generated package examples.
+
 ## Local workflow
 
 The public entrypoint for formatting, linting, typechecking, tests, and

@@ -29,6 +29,7 @@ class Expression:
         return self._tokens(parent_precedence=0)
 
     def _tokens(self, parent_precedence: int) -> tuple[str, ...]:
+        """Render this expression within the caller's precedence context."""
         raise NotImplementedError
 
     def __and__(self, other: Expression) -> Expression:
@@ -45,6 +46,7 @@ class Expression:
         tokens: tuple[str, ...],
         parent_precedence: int,
     ) -> tuple[str, ...]:
+        """Group rendered tokens when the parent binds more tightly."""
         if self.precedence < parent_precedence:
             return ("(", *tokens, ")")
         return tokens
@@ -110,25 +112,86 @@ class Or(Expression):
 
 
 def _checked(value: str) -> str:
+    """Reject NUL characters in values passed to find predicates."""
     if "\x00" in value:
         raise ValueError("find expression values cannot contain NUL")
     return value
 
 
 def name(pattern: str) -> Expression:
-    """Match a basename with ``-name``."""
+    """Match a basename with the GNU ``find`` ``-name`` predicate.
+
+    Parameters
+    ----------
+    pattern : str
+        Basename pattern to match. It must not contain a NUL character.
+
+    Returns
+    -------
+    Expression
+        Predicate matching basenames against ``pattern``.
+
+    Raises
+    ------
+    ValueError
+        If ``pattern`` contains a NUL character.
+
+    Examples
+    --------
+    ``name("*.py").tokens()`` returns ``("-name", "*.py")``.
+    """
 
     return Predicate("-name", (_checked(pattern),))
 
 
 def path(pattern: str) -> Expression:
-    """Match a path with ``-path``."""
+    """Match a path with the GNU ``find`` ``-path`` predicate.
+
+    Parameters
+    ----------
+    pattern : str
+        Path pattern to match. It must not contain a NUL character.
+
+    Returns
+    -------
+    Expression
+        Predicate matching paths against ``pattern``.
+
+    Raises
+    ------
+    ValueError
+        If ``pattern`` contains a NUL character.
+
+    Examples
+    --------
+    ``path("src/*.py").tokens()`` returns ``("-path", "src/*.py")``.
+    """
 
     return Predicate("-path", (_checked(pattern),))
 
 
 def file_type(value: FileType) -> Expression:
-    """Match a filesystem object type with ``-type``."""
+    """Match a filesystem object type with GNU ``find``'s ``-type``.
+
+    Parameters
+    ----------
+    value : FileType
+        Object type to match, such as ``FileType.DIRECTORY``.
+
+    Returns
+    -------
+    Expression
+        Predicate matching the selected filesystem object type.
+
+    Raises
+    ------
+    AttributeError
+        If ``value`` does not provide the ``FileType.value`` attribute.
+
+    Examples
+    --------
+    ``file_type(FileType.DIRECTORY).tokens()`` returns ``("-type", "d")``.
+    """
 
     return Predicate("-type", (value.value,))
 

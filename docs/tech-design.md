@@ -464,6 +464,13 @@ The publishability validator enforces at least these properties:
 - delegated execution is rejected unless the selected policy explicitly
   authorizes it.
 
+Flag parameters consume no values: their `values.maximum` cardinality is zero.
+The v0.1 sketch validator should keep command and parameter validation in
+focused helpers and reuse provenance checks for program, command, and parameter
+sources. This organization is local to sketch publication checks; it does not
+introduce a general compiler abstraction. Refactoring must preserve diagnostic
+text, validation behaviour, and diagnostic ordering.
+
 ## 9. Overlays and custom grammars
 
 ### 9.1 Declarative overlays
@@ -734,6 +741,11 @@ security-significant in exactly the wrong order.
 profile must still decide supported flags, escape behaviour, and how operands
 beginning with `-` are handled. Setwork does not assume that every `echo`
 implementation supports `--` as an option terminator.
+
+With default output flags, a sole `--help` or `--version` operand is rejected
+because the command would interpret it as a control flag. Either string remains
+literal operand text when other operands are present or when any output flag is
+explicitly selected.
 
 ### 12.2 `dd`: assignment operands
 
