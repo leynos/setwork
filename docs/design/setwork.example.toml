@@ -1,0 +1,44 @@
+schema-version = 1
+package = "setwork.cuprum"
+output = "src/setwork/cuprum"
+target-profile = "gnu-linux"
+python-requires = ">=3.12"
+
+[compiler]
+dynamic-source-policy = "reject"
+generated-source-policy = "commit"
+secret-argv-policy = "reject"
+delegated-execution-policy = "reject"
+type-checkers = ["pyright"]
+
+[[sources]]
+id = "fig"
+kind = "fig-typescript"
+repository = "https://github.com/withfig/autocomplete"
+revision = "aef52acff84c45edde61ae610cc2c964802b9a38"
+root = "src"
+licence-policy = "review-required"
+
+[[sources]]
+id = "project-opencli"
+kind = "opencli"
+path = "specs/opencli"
+optional = true
+
+[[overlays]]
+path = "specs/overlays"
+format = "toml"
+
+[[custom-grammars]]
+command = "find"
+adapter = "setwork.grammars.gnu_find:build_spec"
+
+[commands]
+include = ["echo", "dd", "git", "tar", "find"]
+reject-unresolved = true
+reject-delegated-execution = true
+
+[output-catalogue]
+project-name = "setwork-generated"
+documentation-locations = ["docs/generated-commands.md"]
+noise-rules = []

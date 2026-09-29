@@ -2,6 +2,14 @@
 
 This guide explains the contributor workflow for the generated project.
 
+The repository currently contains a scaffold. The
+[terms of reference](terms-of-reference.md) defines scope, the
+[context](context.md) defines vocabulary, and the
+[technical design](tech-design.md) defines the proposed compiler and runtime
+contracts. The [roadmap](roadmap.md) sequences their implementation; unchecked
+tasks represent future work. The [repository layout](repository-layout.md)
+distinguishes current files from proposed paths.
+
 ## Local workflow
 
 The public entrypoint for formatting, linting, typechecking, tests, and
