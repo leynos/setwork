@@ -21,8 +21,8 @@ def generated_api(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
     module_name = "_setwork_generated_api_example"
     path = Path(__file__).resolve().parents[1] / "docs/design/generated_api_example.py"
     spec = util.spec_from_file_location(module_name, path)
-    assert spec is not None
-    assert spec.loader is not None
+    assert spec is not None, "the generated API example must have an import spec"
+    assert spec.loader is not None, "the generated API example must have a loader"
     module = util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, module_name, module)
     spec.loader.exec_module(module)
@@ -46,7 +46,9 @@ def test_echo_keeps_information_operand_with_selected_flag(
 ) -> None:
     """Selected output flags make GNU echo treat information options literally."""
     generated_api.echo(operand, **{flag: True})
-    assert generated_api._BUILD_ECHO.call_args.args[-1] == operand
+    assert generated_api._BUILD_ECHO.call_args.args[-1] == operand, (
+        "an output flag must preserve the information operand as literal text"
+    )
 
 
 @pytest.mark.parametrize("operand", ["--help", "--version"])
@@ -55,7 +57,9 @@ def test_echo_keeps_information_operand_with_more_text(
 ) -> None:
     """More than one operand makes an information option literal text."""
     generated_api.echo(operand, "literal")
-    assert generated_api._BUILD_ECHO.call_args.args == (operand, "literal")
+    assert generated_api._BUILD_ECHO.call_args.args == (operand, "literal"), (
+        "additional text must preserve both literal operands"
+    )
 
 
 @pytest.mark.parametrize("operand", ["-n", "-e", "-E", "-neE"])

@@ -22,7 +22,14 @@ a specific failure, and changes should be reconciled with the aggregate gate
 before being considered complete.
 
 `make lint` runs Ruff, `interrogate --fail-under 100 $(PYTHON_TARGETS)` for
-100% docstring coverage across `$(PYTHON_TARGETS)`, and Pylint.
+100% docstring coverage across `$(PYTHON_TARGETS)`, classic Pylint on PyPy
+8.0.0 (Python 3.12.14), and `df12-python-lints` on CPython 3.14. Both Pylint
+passes use isolated uv tool environments with Pylint 4.0.9 and `astroid` 4.0.4;
+the DF12 plugin is pinned to `v0.3.0`. Runtime verification targets reject an
+incorrect interpreter before linting. `PYLINT_PYTHON` and `DF12_PYTHON` may be
+overridden with compatible interpreter paths; `PYLINTHOME` caches are separate.
+uv installs the managed interpreters automatically when required. The lint
+baseline remains Python 3.12, matching `requires-python`.
 
 `make typecheck` runs `ty`, pinned in the dev dependency group (`ty==0.0.56`):
 unpinned installations broke repositories when ty 0.0.56 landed. Bump the pin
@@ -53,8 +60,9 @@ actions under `.github/`.
 - `.github/workflows/ci.yml` runs on pushes to `main` and on pull requests. It
   sets up Python 3.13, installs `uv`, validates the generated `Makefile` with
   `mbake`, runs `make build`, `make check-fmt`, `make lint` (Ruff +
-  `interrogate --fail-under 100 $(PYTHON_TARGETS)` + Pylint), `make typecheck`,
-  `make spelling`, and `make audit` except for Dependabot pull requests via
+  `interrogate --fail-under 100 $(PYTHON_TARGETS)` + Pylint +
+  `df12-python-lints`), `make typecheck`, `make spelling`, and `make audit`
+  except for Dependabot pull requests via
   `if: github.actor != 'dependabot[bot]'`, then delegates coverage generation
   to the shared coverage action. When the Rust extension is enabled, it also
   sets up Rust, installs Rust lint and test tools, and passes
@@ -99,3 +107,12 @@ artefact and is ignored by Git, as is the local cache that keeps the gate
 usable when the authority is temporarily unreachable. Add only narrow
 project-specific terms and exclusions to `typos.local.toml`; never edit
 generated `typos.toml` by hand.
+
+## Shared documentation library
+
+The complexity guide, documentation style guide, local Actions validation
+guide, and scripting standards are verbatim imports from the
+[shared documentation library](https://github.com/leynos/agent-helper-scripts/tree/main/documentation-library)
+at revision `8b6d0414675d19d4045b0336ec2166d94569816d`. Refresh these
+documents by replacing them with the library versions; record project-specific
+guidance in this guide.

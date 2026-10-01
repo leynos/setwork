@@ -83,7 +83,9 @@
     - `make lint` runs `make lint-python`; `make lint-python` runs
       `ruff check $(PYTHON_TARGETS)`, enforces 100% docstring coverage with
       `interrogate --fail-under 100 $(PYTHON_TARGETS)`, and runs a pinned
-      Pylint against `$(PYLINT_TARGETS)` on uv-managed PyPy 3.12.
+      Pylint against `$(PYLINT_TARGETS)` on uv-managed PyPy 8.0.0 (Python
+      3.12.14), then `df12-python-lints` on uv-managed CPython 3.14. Both
+      interpreter identities are checked before linting.
     - `make typecheck` runs `ty check $(PYTHON_TARGETS)`.
     - `make test` runs `pytest -v -n $(PYTEST_XDIST_WORKERS)` and honours
       `WITH_ACT=1` through `RUN_ACT_VALIDATION=1`.

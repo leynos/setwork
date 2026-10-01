@@ -162,6 +162,7 @@ max-bool-expr = 2
 max-locals = 10
 
 [tool.pylint.main]
+py-version = "3.12"
 recursive = true
 max-module-lines = 400
 

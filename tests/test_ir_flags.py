@@ -54,8 +54,10 @@ def test_flag_occurrences_are_independent_of_values(
         serialization=ir.SerializationSpec(ir.SerializationKind.PRESENCE, "-v"),
         cli_names=("-v",),
     )
-    assert parameter.values.maximum == 0
-    assert parameter.occurrences.maximum == maximum
+    assert parameter.values.maximum == 0, "flags must consume no values"
+    assert parameter.occurrences.maximum == maximum, (
+        "flag repeatability must be independent of consumed values"
+    )
 
 
 @pytest.fixture
@@ -120,7 +122,7 @@ def test_publication_provenance_diagnostics(
     message = f"{locations[scope]}: {state} {subject}provenance"
     with pytest.raises(ValueError, match=f"^{re.escape(message)}$") as error:
         validator.validate_publishable(program)
-    assert str(error.value) == message
+    assert str(error.value) == message, "publication diagnostic wording changed"
 
 
 @pytest.mark.parametrize(
@@ -170,7 +172,7 @@ def test_publication_policy_diagnostics(
     program = dc.replace(publishable_program, commands=(command,))
     with pytest.raises(ValueError, match=f"^{re.escape(message)}$") as error:
         validator.validate_publishable(program)
-    assert str(error.value) == message
+    assert str(error.value) == message, "publication diagnostic wording changed"
 
 
 def test_publication_accepts_resolved_evidence_among_unresolved(
@@ -200,4 +202,6 @@ def test_publication_preserves_failure_precedence(
     program = dc.replace(publishable_program, commands=(command,))
     with pytest.raises(ValueError, match="forbidden effect") as error:
         validator.validate_publishable(program)
-    assert str(error.value) == "echo.echo.text: forbidden effect"
+    assert str(error.value) == "echo.echo.text: forbidden effect", (
+        "effect validation must precede sensitivity and provenance checks"
+    )

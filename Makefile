@@ -17,15 +17,34 @@ WITH_ACT ?= 0
 ACT_TEST_ENV = $(if $(filter 1 true yes on,$(WITH_ACT)),RUN_ACT_VALIDATION=1,)
 PYTEST_XDIST_WORKERS ?= auto
 PYTHON_TARGETS ?= setwork tests
-# PyPy 3.12 parses every construct up to the project's baseline.
-PYLINT_PYTHON ?= pypy@3.12
+# uv's PyPy 3.12.14 release provides PyPy 8.0.0; verify both identities.
+PYLINT_PYTHON ?= pypy@3.12.14
 PYLINT_VERSION ?= 4.0.9
 PYLINT_TARGETS ?= $(PYTHON_TARGETS)
-PYLINT = $(UV_ENV) $(UV) tool run --managed-python --python $(PYLINT_PYTHON) --from 'pylint==$(PYLINT_VERSION)' pylint
+ASTROID_VERSION ?= 4.0.4
+PYLINT_CACHE ?= .cache/pylint/pypy312
+DF12_PYLINT_CACHE ?= .cache/pylint/cpython314
+PYLINT_TOOL = PYLINTHOME=$(PYLINT_CACHE) $(UV_ENV) $(UV) tool run \
+	--managed-python --python $(PYLINT_PYTHON) --from 'pylint==$(PYLINT_VERSION)' \
+	--with 'astroid==$(ASTROID_VERSION)'
+PYLINT = $(PYLINT_TOOL) python -m pylint --jobs=1
+# Keep the DF12 policy pass isolated from the classic PyPy environment.
+DF12_PYTHON_LINTS_REF ?= v0.3.0
+DF12_PYTHON_LINTS = git+https://github.com/leynos/df12-python-lints.git@$(DF12_PYTHON_LINTS_REF)
+DF12_PYTHON ?= cpython@3.14
+DF12_PYLINT_TARGETS ?= $(PYTHON_TARGETS)
+DF12_PYLINT_MESSAGES = R9101,C9102,R9103,R9104,C9105,C9106,C9107,R9108,R9109,R9110,R9111,C9112,R9112
+DF12_PYLINT_TOOL = PYLINTHOME=$(DF12_PYLINT_CACHE) $(UV_ENV) $(UV) tool run \
+	--managed-python --python $(DF12_PYTHON) --from 'pylint==$(PYLINT_VERSION)' \
+	--with 'astroid==$(ASTROID_VERSION)' --with '$(DF12_PYTHON_LINTS)'
+DF12_PYLINT = $(DF12_PYLINT_TOOL) python -m pylint --jobs=1 \
+	--disable=all --load-plugins=df12_python_lints \
+	--enable=syntax-error,$(DF12_PYLINT_MESSAGES)
 
 
 .PHONY: help all audit clean build build-release lint lint-python fmt check-fmt \
-        markdownlint nixie spelling test typecheck $(TOOLS) $(VENV_TOOLS)
+        markdownlint nixie spelling test typecheck verify-classic-pylint \
+        verify-df12-pylint $(TOOLS) $(VENV_TOOLS)
 
 .DEFAULT_GOAL := all
 
@@ -97,10 +116,17 @@ check-fmt: build ## Verify formatting
 
 lint: lint-python ## Run linters
 
-lint-python: build ## Run Python linters
+verify-classic-pylint: ## Verify PyPy 8.0.0 with Python 3.12 before linting
+	$(PYLINT_TOOL) python -c 'import sys; expected = ("pypy", (3, 12), (8, 0, 0)); actual = (sys.implementation.name, sys.version_info[:2], getattr(sys, "pypy_version_info", ())[:3]); assert actual == expected, f"classic pylint requires {expected}, got {actual}"; print(sys.version)'
+
+verify-df12-pylint: ## Verify CPython 3.14 before running DF12 lints
+	$(DF12_PYLINT_TOOL) python -c 'import sys; expected = ("cpython", (3, 14)); actual = (sys.implementation.name, sys.version_info[:2]); assert actual == expected, f"DF12 pylint requires {expected}, got {actual}"; print(sys.version)'
+
+lint-python: build verify-classic-pylint verify-df12-pylint ## Run Python linters
 	$(UV_ENV) $(UV) run ruff check $(PYTHON_TARGETS)
 	$(UV_ENV) $(UV) run interrogate --fail-under 100 $(PYTHON_TARGETS)
 	$(PYLINT) $(PYLINT_TARGETS)
+	$(DF12_PYLINT) $(DF12_PYLINT_TARGETS)
 
 
 typecheck: build ## Run typechecking
