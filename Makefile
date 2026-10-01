@@ -1,22 +1,32 @@
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
-MDFORMAT_ALL ?= mdformat-all
+YAMLLINT ?= yamllint
+ACTIONLINT ?= actionlint
+# Git selection includes new documents and avoids ignored dependency trees.
+# Both modes require mdtablefix 0.6.0 or later.
+MDTABLEFIX ?= mdtablefix
+MDTABLEFIX_SELECT = --git --include-untracked
+MDTABLEFIX_EXTENSIONS = --md-exts md,markdown,mdx
+MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
+MARKDOWN_GLOBS = '*.md' '*.markdown' '*.mdx'
 export PATH := $(HOME)/.local/bin:$(HOME)/.bun/bin:$(PATH)
 UV ?= $(shell command -v uv 2>/dev/null || printf '%s/.local/bin/uv' "$$HOME")
 USER_CARGO := $(HOME)/.cargo/bin/cargo
 USER_WHITAKER := $(HOME)/.local/bin/whitaker
 USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin:$(HOME)/.bun/bin
-TOOLS = $(MDFORMAT_ALL) $(MDLINT)
+TOOLS = $(MDTABLEFIX) $(MDLINT) $(YAMLLINT) $(ACTIONLINT)
 VENV_TOOLS = pytest
 UV_ENV = PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
-TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.1
-TYPOS_CONFIG_BUILDER = env $(UV_ENV) $(UV) tool run --from \
+TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3
+TYPOS_CONFIG_BUILDER = env $(UV_ENV) $(UV) tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder
 WITH_ACT ?= 0
 ACT_TEST_ENV = $(if $(filter 1 true yes on,$(WITH_ACT)),RUN_ACT_VALIDATION=1,)
 PYTEST_XDIST_WORKERS ?= auto
 PYTHON_TARGETS ?= setwork tests
+# Optional roots join docstring coverage as soon as their directories exist.
+INTERROGATE_TARGETS ?= $(PYTHON_TARGETS) $(wildcard scripts .github/workflows .github/actions)
 # uv's PyPy 3.12.14 release provides PyPy 8.0.0; verify both identities.
 PYLINT_PYTHON ?= pypy@3.12.14
 PYLINT_VERSION ?= 4.0.9
@@ -42,9 +52,16 @@ DF12_PYLINT = $(DF12_PYLINT_TOOL) python -m pylint --jobs=1 \
 	--enable=syntax-error,$(DF12_PYLINT_MESSAGES)
 
 
+# `git ls-files` covers tracked files and nonignored untracked files without
+# traversing ignored paths. The shell filter keeps only regular non-symlink
+# files, and prefixes a leading dash so the linter cannot parse it as an option.
+MDLINT_FILES_FIND = bash -o pipefail -c 'git ls-files -z --cached --others --exclude-standard -- "$$@" | while IFS= read -r -d "" markdown_file; do if [ -f "$$markdown_file" ] && [ ! -L "$$markdown_file" ]; then case "$$markdown_file" in -*) printf "./%s\0" "$$markdown_file" ;; *) printf "%s\0" "$$markdown_file" ;; esac; fi; done' -- $(MARKDOWN_GLOBS)
+MDLINT_FIX_COMMAND = unset FORCE_COLOR; env -u NO_COLOR xargs -0 -r $(MDLINT) --fix < "$$markdown_files"
+MDLINT_CHECK_COMMAND = unset FORCE_COLOR; env -u NO_COLOR xargs -0 -r $(MDLINT) < "$$markdown_files"
+
 .PHONY: help all audit clean build build-release lint lint-python fmt check-fmt \
         markdownlint nixie spelling test typecheck verify-classic-pylint \
-        verify-df12-pylint $(TOOLS) $(VENV_TOOLS)
+        verify-df12-pylint github-actions-lint $(TOOLS) $(VENV_TOOLS)
 
 .DEFAULT_GOAL := all
 
@@ -90,6 +107,17 @@ define ensure_tool_venv
 	}
 endef
 
+define run_markdownlint_files
+	@markdown_files="$$(mktemp)" || exit $$?; \
+	trap 'rm -f "$$markdown_files"' 0; \
+	if ! $(MDLINT_FILES_FIND) > "$$markdown_files"; then \
+		exit 1; \
+	fi; \
+	if [ -s "$$markdown_files" ]; then \
+		$(1); \
+	fi
+endef
+
 ifneq ($(strip $(TOOLS)),)
 $(TOOLS): ## Verify required CLI tools
 	$(call ensure_tool,$@)
@@ -103,18 +131,19 @@ $(VENV_TOOLS): build ## Verify required CLI tools in venv
 endif
 
 
-fmt: build $(MDFORMAT_ALL) ## Format sources
+fmt: build $(MDTABLEFIX) $(MDLINT) ## Format sources
 	$(UV_ENV) $(UV) run ruff format $(PYTHON_TARGETS)
 	$(UV_ENV) $(UV) run ruff check --select I --fix $(PYTHON_TARGETS)
 
-	$(MDFORMAT_ALL)
+	$(MDTABLEFIX) --in-place $(MDTABLEFIX_SELECT) $(MDTABLEFIX_EXTENSIONS) $(MDTABLEFIX_RULES)
+	$(call run_markdownlint_files,$(MDLINT_FIX_COMMAND))
 
-check-fmt: build ## Verify formatting
+check-fmt: build $(MDTABLEFIX) ## Verify formatting
 	$(UV_ENV) $(UV) run ruff format --check $(PYTHON_TARGETS)
 
-	# mdformat-all doesn't currently do checking
+	$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_EXTENSIONS) $(MDTABLEFIX_RULES)
 
-lint: lint-python ## Run linters
+lint: lint-python github-actions-lint ## Run Python and GitHub Actions linters
 
 verify-classic-pylint: ## Verify PyPy 8.0.0 with Python 3.12 before linting
 	$(PYLINT_TOOL) python -c 'import sys; expected = ("pypy", (3, 12), (8, 0, 0)); actual = (sys.implementation.name, sys.version_info[:2], getattr(sys, "pypy_version_info", ())[:3]); assert actual == expected, f"classic pylint requires {expected}, got {actual}"; print(sys.version)'
@@ -124,10 +153,14 @@ verify-df12-pylint: ## Verify CPython 3.14 before running DF12 lints
 
 lint-python: build verify-classic-pylint verify-df12-pylint ## Run Python linters
 	$(UV_ENV) $(UV) run ruff check $(PYTHON_TARGETS)
-	$(UV_ENV) $(UV) run interrogate --fail-under 100 $(PYTHON_TARGETS)
+	$(UV_ENV) $(UV) run interrogate --fail-under 100 $(INTERROGATE_TARGETS)
 	$(PYLINT) $(PYLINT_TARGETS)
 	$(DF12_PYLINT) $(DF12_PYLINT_TARGETS)
 
+
+github-actions-lint: $(YAMLLINT) $(ACTIONLINT) ## Validate workflows and local actions
+	$(YAMLLINT) --strict --config-file .yamllint.yml .github/workflows .github/actions
+	$(ACTIONLINT)
 
 typecheck: build ## Run typechecking
 	$(UV_ENV) $(UV) run ty --version
@@ -138,11 +171,11 @@ audit: build ## Audit dependencies for known vulnerabilities
 
 
 markdownlint: $(MDLINT) ## Lint Markdown files and spelling
-	env -u NO_COLOR $(MDLINT) '**/*.md'
+	$(call run_markdownlint_files,$(MDLINT_CHECK_COMMAND))
 	+$(MAKE) spelling
 
 spelling: ## Enforce en-GB-oxendict spelling
-	$(TYPOS_CONFIG_BUILDER) gate --repository .
+	$(TYPOS_CONFIG_BUILDER) gate --repository . --scope all
 
 nixie: ## Validate Mermaid diagrams
 	$(call ensure_tool,$(NIXIE))

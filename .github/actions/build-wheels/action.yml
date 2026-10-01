@@ -1,3 +1,4 @@
+---
 name: Build Wheels
 description: Builds Python wheels across specified architectures using cibuildwheel and uploads them.
 inputs:
