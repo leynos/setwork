@@ -78,9 +78,12 @@ actions under `.github/`.
   `df12-python-lints` + GitHub Actions checks), `make typecheck`,
   `make spelling`, and `make audit` except for Dependabot pull requests via
   `if: github.actor != 'dependabot[bot]'`, then delegates coverage generation
-  to the shared coverage action. When the Rust extension is enabled, it also
-  sets up Rust, installs Rust lint and test tools, and passes
-  `rust_extension/Cargo.toml` to coverage.
+  to the shared coverage action. Coverage generation uses SlipCover with xdist
+  and keeps the coverage ratchet enabled. The pinned action computes outputs
+  after a ratchet failure and supplies a fallback artefact name, so a coverage
+  regression cannot mask itself with an empty upload name. When the Rust
+  extension is enabled, it also sets up Rust, installs Rust lint and test
+  tools, and passes `rust_extension/Cargo.toml` to coverage.
 - `.github/workflows/audit.yml` runs `make audit` against the default branch
   weekly as the compensating control for the Dependabot CI bypass.
 - `.github/workflows/act-validation.yml` runs rendered workflow validation in a
@@ -105,9 +108,17 @@ actions under `.github/`.
   Actions and Python packages. Rust-enabled projects also receive Cargo updates.
 
 The `CS_ACCESS_TOKEN` secret must be configured when CodeScene coverage upload
-is required. The `CODESCENE_CLI_SHA256` variable should be populated using the
-refresh workflow, so CI can verify the downloaded CodeScene installer before
-upload.
+is required. Main-branch uploads use the shared action's approved CLI manifest
+and archive digest; `installer-checksum` is deprecated and must not be passed.
+A dispatch from another branch generates coverage but does not upload it to
+CodeScene. The older checksum-refresh workflow remains available for legacy
+consumers and is not required by the current uploader.
+
+IR constructor tests cover invalid cardinalities, enumerations, serialization
+settings, names, aliases, and target policies. Their shared fixtures live in
+`tests/conftest.py` so policy and constructor tests exercise the same valid IR.
+Workflow contract tests keep both coverage lanes on the failure-safe shared
+action and prevent reintroducing the deprecated upload configuration.
 
 ## Shared spelling configuration
 
