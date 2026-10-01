@@ -2,6 +2,18 @@
 
 This guide explains the contributor workflow for the generated project.
 
+The repository currently contains a scaffold. The
+[terms of reference](terms-of-reference.md) defines scope, the
+[context](context.md) defines vocabulary, and the
+[technical design](tech-design.md) defines the proposed compiler and runtime
+contracts. The [roadmap](roadmap.md) sequences their implementation; unchecked
+tasks represent future work. The [repository layout](repository-layout.md)
+distinguishes current files from proposed paths.
+
+The reference generated package lives at `generated/setwork/cuprum`, as shown
+in section 5.3 of the [technical design](tech-design.md). Its contents remain
+package-root-relative in generated package examples.
+
 ## Local workflow
 
 The public entrypoint for formatting, linting, typechecking, tests, and
@@ -9,8 +21,29 @@ spelling is `make all`. Narrower Make targets may be invoked when investigating
 a specific failure, and changes should be reconciled with the aggregate gate
 before being considered complete.
 
-`make lint` runs Ruff, `interrogate --fail-under 100 $(PYTHON_TARGETS)` for
-100% docstring coverage across `$(PYTHON_TARGETS)`, and Pylint.
+`make fmt` runs `mdtablefix --in-place` and `markdownlint-cli2 --fix` for
+Markdown. `make check-fmt` runs `mdtablefix --check` with the same formatting
+rules. Both require `mdtablefix` 0.6.0 or later, installed by the pinned shared
+CI action. Markdown selection includes tracked and nonignored untracked `.md`,
+`.markdown`, and `.mdx` files. The linter uses a NUL-delimited Git file list,
+skips deleted files and symlinks, and handles filenames with spaces or leading
+dashes without traversing ignored dependency directories.
+
+`make lint` runs Ruff, `interrogate --fail-under 100 $(INTERROGATE_TARGETS)`
+for 100% docstring coverage across `$(INTERROGATE_TARGETS)`, classic Pylint on
+PyPy 8.0.0 (Python 3.12.14), and `df12-python-lints` on CPython 3.14. Both
+Pylint passes use isolated uv tool environments with Pylint 4.0.9 and `astroid`
+4.0.4; the DF12 plugin is pinned to `v0.3.0`. Runtime verification targets
+reject an incorrect interpreter before linting. `PYLINT_PYTHON` and
+`DF12_PYTHON` may be overridden with compatible interpreter paths; `PYLINTHOME`
+caches are separate. uv installs the managed interpreters automatically when
+required. The lint baseline remains Python 3.12, matching `requires-python`.
+
+`INTERROGATE_TARGETS` includes the package and tests plus `scripts/` when
+present and Python modules beneath `.github/workflows/` and `.github/actions/`.
+`make github-actions-lint` checks YAML in both workflow and local action
+folders with `yamllint --strict`, and workflow semantics with `actionlint`.
+This target also runs through `make lint`.
 
 `make typecheck` runs `ty`, pinned in the dev dependency group (`ty==0.0.56`):
 unpinned installations broke repositories when ty 0.0.56 landed. Bump the pin
@@ -41,12 +74,16 @@ actions under `.github/`.
 - `.github/workflows/ci.yml` runs on pushes to `main` and on pull requests. It
   sets up Python 3.13, installs `uv`, validates the generated `Makefile` with
   `mbake`, runs `make build`, `make check-fmt`, `make lint` (Ruff +
-  `interrogate --fail-under 100 $(PYTHON_TARGETS)` + Pylint), `make typecheck`,
+  `interrogate --fail-under 100 $(INTERROGATE_TARGETS)` + Pylint +
+  `df12-python-lints` + GitHub Actions checks), `make typecheck`,
   `make spelling`, and `make audit` except for Dependabot pull requests via
   `if: github.actor != 'dependabot[bot]'`, then delegates coverage generation
-  to the shared coverage action. When the Rust extension is enabled, it also
-  sets up Rust, installs Rust lint and test tools, and passes
-  `rust_extension/Cargo.toml` to coverage.
+  to the shared coverage action. Coverage generation uses SlipCover with xdist
+  and keeps the coverage ratchet enabled. The pinned action computes outputs
+  after a ratchet failure and supplies a fallback artefact name, so a coverage
+  regression cannot mask itself with an empty upload name. When the Rust
+  extension is enabled, it also sets up Rust, installs Rust lint and test
+  tools, and passes `rust_extension/Cargo.toml` to coverage.
 - `.github/workflows/audit.yml` runs `make audit` against the default branch
   weekly as the compensating control for the Dependabot CI bypass.
 - `.github/workflows/act-validation.yml` runs rendered workflow validation in a
@@ -71,19 +108,38 @@ actions under `.github/`.
   Actions and Python packages. Rust-enabled projects also receive Cargo updates.
 
 The `CS_ACCESS_TOKEN` secret must be configured when CodeScene coverage upload
-is required. The `CODESCENE_CLI_SHA256` variable should be populated using the
-refresh workflow, so CI can verify the downloaded CodeScene installer before
-upload.
+is required. Main-branch uploads use the shared action's approved CLI manifest
+and archive digest; `installer-checksum` is deprecated and must not be passed.
+A dispatch from another branch generates coverage but does not upload it to
+CodeScene. The older checksum-refresh workflow remains available for legacy
+consumers and is not required by the current uploader.
+
+IR constructor tests cover invalid cardinalities, enumerations, serialization
+settings, names, aliases, and target policies. Their shared fixtures live in
+`tests/conftest.py` so policy and constructor tests exercise the same valid IR.
+Workflow contract tests keep both coverage lanes on the failure-safe shared
+action and prevent reintroducing the deprecated upload configuration.
 
 ## Shared spelling configuration
 
 Run `make spelling` to enforce en-GB-oxendict spelling. The shared
 `typos-config-builder` gate regenerates `typos.toml` from the live estate
 dictionary in `leynos/agent-helper-scripts` and the `typos.local.toml` overlay
-on every run, then checks tracked Markdown. A word added to the shared
-dictionary therefore needs no change here, and `typos.toml` must never be drift
-checked in continuous integration. `typos.toml` is therefore a generated
-artefact and is ignored by Git, as is the local cache that keeps the gate
-usable when the authority is temporarily unreachable. Add only narrow
-project-specific terms and exclusions to `typos.local.toml`; never edit
-generated `typos.toml` by hand.
+on every run, then checks all tracked files with `--scope all`. The pinned
+`v0.1.3` tool runs on Python 3.14 in an isolated uv tool environment; the gate
+runs Typos and the shared phrase check without building the project. A word
+added to the shared dictionary therefore needs no change here, and `typos.toml`
+must never be drift checked in continuous integration. `typos.toml` is
+therefore a generated artefact and is ignored by Git, as is the local cache
+that keeps the gate usable when the authority is temporarily unreachable. Add
+only narrow project-specific terms and exclusions to `typos.local.toml`; never
+edit generated `typos.toml` by hand.
+
+## Shared documentation library
+
+The complexity guide, documentation style guide, local Actions validation
+guide, and scripting standards are imported from the
+[shared documentation library](https://github.com/leynos/agent-helper-scripts/tree/main/documentation-library)
+at revision `8b6d0414675d19d4045b0336ec2166d94569816d`. Refresh these
+documents by replacing them with the library versions, then applying
+`make fmt`; record project-specific guidance in this guide.

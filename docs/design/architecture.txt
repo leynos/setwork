@@ -1,0 +1,29 @@
+Figure 1: Setwork build-time and runtime boundaries
+
+ BUILD TIME
+
+ completion corpora     authoritative specs     curated overlays
+        |                       |                       |
+        +-----------------------+-----------------------+
+                                |
+                         source adapters
+                                |
+                     evidence-bearing command IR
+                                |
+                  normalization and publishability gate
+                                |
+                 +--------------+---------------+
+                 |                              |
+          Python source                   provenance,
+           generator                    notices, lockfile
+                 |                              |
+                 +--------------+---------------+
+                                |
+                    generated setwork.cuprum
+
+ RUNTIME
+
+ typed Python call -> exact argv -> Cuprum SafeCmd -> command or pipeline
+
+The compiler never executes imported completion code in the default policy.
+The generated runtime never imports Node.js, Fig, Tree-sitter, or the compiler.

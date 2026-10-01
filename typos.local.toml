@@ -12,6 +12,10 @@ accepted = []
 
 [patterns]
 ignore = [
+  # Fixed Pylint dependency name in Make variables.
+  '\bASTROID_VERSION\b',
+  # External colour-control environment variables used by markdownlint-cli2.
+  '\b(?:FORCE_COLOR|NO_COLOR)\b',
   # Inline code spans were masked by the previous dictionary snapshot; kept
   # until the shared dictionary rules on it.
   '`[^`\n]+`',
