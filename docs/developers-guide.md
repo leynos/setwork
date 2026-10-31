@@ -120,6 +120,9 @@ The `generate-coverage` selection in both workflows must match field for field
 
 ### The CV-005 contract check
 
+The decision is recorded in
+[ADR-001](adr-001-main-owns-codescene-coverage-publication.md).
+
 `make test-workflow-contracts` runs the shared `cv005-contracts` checker
 against this repository's workflows. `make all` includes it, and CI runs it.
 The checker is fetched from the `leynos/shared-actions` commit named by
