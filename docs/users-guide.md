@@ -15,13 +15,18 @@ these targets in order:
 - `spelling`: run the shared `typos-config-builder` gate over tracked Markdown
   to enforce en-GB-oxendict spelling.
 - `audit`: run `pip-audit` and, when Rust is enabled, `cargo audit`.
+- `test-workflow-contracts`: run the shared `cv005-contracts` checker, pinned to
+  one full `leynos/shared-actions` commit in the `Makefile`, against this
+  repository's workflows. It holds the CodeScene arrangement described in
+  [ADR-001](adr-001-main-owns-codescene-coverage-publication.md). The first run
+  fetches the checker, so it needs network access.
 
 The `lint-python` target runs Ruff, then Interrogate with
 `interrogate --fail-under 100 $(PYTHON_TARGETS)` to enforce 100% docstring
-coverage for the Python targets, then a pinned Pylint (`PYLINT_VERSION`) on uv-managed PyPy 3.12
-(`PYLINT_PYTHON`), installed through `uv tool run`. `syntax-error` stays
-enabled, so a module that the interpreter cannot parse fails the lint rather than being
-skipped.
+coverage for the Python targets, then a pinned Pylint (`PYLINT_VERSION`) on
+uv-managed PyPy 3.12 (`PYLINT_PYTHON`), installed through `uv tool run`.
+`syntax-error` stays enabled, so a module that the interpreter cannot parse
+fails the lint rather than being skipped.
 
 The spelling target regenerates `typos.toml` from the live shared dictionary
 and the `typos.local.toml` overlay on every run, so `typos.toml` is never drift
@@ -41,8 +46,8 @@ When the Rust extension is enabled, `lint-rust` runs:
 - Whitaker with `whitaker --all`.
 
 The generated Makefile never installs Whitaker; it fails with a clear error
-when the wrapper is missing. Install it yourself with `whitaker-installer`
-(see <https://github.com/leynos/whitaker>) before running local Rust linting.
+when the wrapper is missing. Install it yourself with `whitaker-installer` (see
+<https://github.com/leynos/whitaker>) before running local Rust linting.
 
 ## Dependency Auditing
 
@@ -57,12 +62,13 @@ compensating control. Rust-enabled projects also run `cargo audit` from the
 
 ## Rust Test Behaviour
 
-Rust-enabled projects use `cargo nextest run` when `cargo-nextest` is available.
-If `cargo-nextest` is not installed, the generated `test` target falls back to
-`cargo test`. Rust documentation tests still run through `cargo test --doc`.
+Rust-enabled projects use `cargo nextest run` when `cargo-nextest` is
+available. If `cargo-nextest` is not installed, the generated `test` target
+falls back to `cargo test`. Rust documentation tests still run through
+`cargo test --doc`.
 
-If cargo is missing from the local environment, generated Rust test targets fail
-early with a clear error instead of falling through to an unusable `cargo`
+If cargo is missing from the local environment, generated Rust test targets
+fail early with a clear error instead of falling through to an unusable `cargo`
 invocation.
 
 ## Local GitHub Actions Validation
@@ -76,9 +82,9 @@ make test WITH_ACT=1
 ```
 
 This sets `RUN_ACT_VALIDATION=1` for the pytest invocation, enabling the
-act-based integration tests that run the generated CI workflow locally.
-Omitting `WITH_ACT` (or setting it to `0`) skips act validation; the rest of
-the test suite runs unchanged.
+act-based integration tests that run the generated CI workflow locally. Omitting
+`WITH_ACT` (or setting it to `0`) skips act validation; the rest of the test
+suite runs unchanged.
 
 ## Cleaning Local State
 
