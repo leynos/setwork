@@ -15,7 +15,7 @@ set.
 
 ## Decisions
 
-- [ADR-001: `main` owns CodeScene coverage publication](adr-001-main-owns-codescene-coverage-publication.md)
+- [ADR-001: `main` owns CodeScene coverage publication](adrs/adr-0001-main-owns-codescene-coverage-publication.md)
   records why pull requests never reach CodeScene and one main-only publisher
   uploads.
 
