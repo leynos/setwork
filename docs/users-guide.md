@@ -18,8 +18,8 @@ these targets in order:
 - `test-workflow-contracts`: run the shared `cv005-contracts` checker, pinned to
   one full `leynos/shared-actions` commit in the `Makefile`, against this
   repository's workflows. It holds the CodeScene arrangement described in
-  [ADR-001](adr-001-main-owns-codescene-coverage-publication.md). The first run
-  fetches the checker, so it needs network access.
+  [ADR-001](adrs/adr-0001-main-owns-codescene-coverage-publication.md). The
+  first run fetches the checker, so it needs network access.
 
 The `lint-python` target runs Ruff, then Interrogate with
 `interrogate --fail-under 100 $(PYTHON_TARGETS)` to enforce 100% docstring

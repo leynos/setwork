@@ -70,5 +70,5 @@ network access.
   or changes the coverage selection on one side only fails the contract, which
   names the clause.
 
-The [developers' guide](developers-guide.md) records the publisher's shape and
-its operational exceptions.
+The [developers' guide](../developers-guide.md) records the publisher's shape
+and its operational exceptions.
